@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Match Quiz</title>
+    <!-- Tailwind CSS for styling without needing a separate CSS file -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 font-sans">
+
+    <!-- The main quiz card -->
+    <div id="quiz-card" class="max-w-md w-full bg-white p-6 rounded-lg shadow-lg">
+        <div id="quiz-content">
+            <!-- Content will be injected here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // 1. Your EasyStore Products (Mocked for now)
+        const COFFEE_CATALOG = [
+            {
+                name: "House Blend",
+                url: "https://yourstore.com/products/house-blend",
+                image: "https://cdn.easystore.co/house-blend.jpg",
+                tags: ["cozy", "balanced", "afternoon"]
+            },
+            {
+                name: "Dark Midnight Roast",
+                url: "https://yourstore.com/products/dark-roast",
+                image: "https://cdn.easystore.co/dark-roast.jpg",
+                tags: ["bold", "intense", "morning"]
+            },
+            {
+                name: "Bright Light Roast",
+                url: "https://yourstore.com/products/light-roast",
+                image: "https://cdn.easystore.co/light-roast.jpg",
+                tags: ["bright", "fruity", "morning"]
+            }
+        ];
+
+        // 2. The Quiz Questions
+        const QUESTIONS = [
+            {
+                question: "Pick your ideal weekend getaway:",
+                options: [
+                    { text: "A cabin in the rainy woods 🌲", tag: "cozy" },
+                    { text: "A bustling, fast-paced city 🏙️", tag: "bold" },
+                    { text: "A sunny, tropical beach 🏖️", tag: "bright" }
+                ]
+            },
+            {
+                question: "When do you absolutely NEED your coffee?",
+                options: [
+                    { text: "First thing in the morning 🌅", tag: "morning" },
+                    { text: "Mid-afternoon pick-me-up 🕰️", tag: "afternoon" },
+                    { text: "I like intense flavors anytime ⚡", tag: "intense" }
+                ]
+            }
+        ];
+
+        // 3. Quiz State
+        let currentStep = 0;
+        let userTags = [];
+
+        // 4. UI Rendering Engine
+        const contentDiv = document.getElementById('quiz-content');
+
+        function renderApp() {
+            // State 1: Rendering Questions
+            if (currentStep < QUESTIONS.length) {
+                const q = QUESTIONS[currentStep];
+                let optionsHtml = q.options.map(opt => `
+                    <button 
+                        onclick="handleAnswer('${opt.tag}')" 
+                        class="w-full text-left p-4 border border-gray-200 rounded hover:bg-orange-50 hover:border-orange-500 transition duration-200">
+                        ${opt.text}
+                    </button>
+                `).join('');
+
+                contentDiv.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">${q.question}</h2>
+                    <div class="space-y-3">
+                        ${optionsHtml}
+                    </div>
+                    <div class="mt-6 text-sm text-gray-400 text-center">
+                        Question ${currentStep + 1} of ${QUESTIONS.length}
+                    </div>
+                `;
+            } 
+            // State 2: Rendering Email Capture Form
+            else {
+                contentDiv.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800">We found your match!</h2>
+                    <p class="text-gray-600 mb-6">Enter your email to reveal your perfect coffee beans and get your 15% discount code.</p>
+                    <form id="email-form" class="space-y-4">
+                        <input 
+                            type="email" 
+                            id="user-email" 
+                            required 
+                            placeholder="Enter your email" 
+                            class="w-full p-3 border border-gray-300 rounded focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                        >
+                        <button 
+                            type="submit" 
+                            id="submit-btn"
+                            class="w-full p-3 bg-orange-600 text-white font-bold rounded hover:bg-orange-700 transition duration-200">
+                            Send My Results
+                        </button>
+                    </form>
+                `;
+
+                // Attach the submit event listener
+                document.getElementById('email-form').addEventListener('submit', handleSubmit);
+            }
+        }
+
+        // 5. Logic Handlers
+        window.handleAnswer = function(tag) {
+            userTags.push(tag);
+            currentStep++;
+            renderApp();
+        };
+
+        function getMatches() {
+            // Score the beans
+            const scoredBeans = COFFEE_CATALOG.map(bean => {
+                const matchScore = bean.tags.filter(tag => userTags.includes(tag)).length;
+                return { ...bean, matchScore };
+            });
+
+            // Filter out 0 matches and sort highest to lowest
+            return scoredBeans
+                .filter(bean => bean.matchScore > 0)
+                .sort((a, b) => b.matchScore - a.matchScore);
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            const emailInput = document.getElementById('user-email').value;
+            const submitBtn = document.getElementById('submit-btn');
+            
+            // UI feedback while sending
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing...";
+            submitBtn.classList.add("opacity-70");
+
+            const recommendedBeans = getMatches();
+
+            const payload = {
+                email: emailInput,
+                event_name: "Quiz_Completed",
+                recommended_beans: recommendedBeans
+            };
+
+            try {
+                // REPLACE WITH YOUR MAKE.COM WEBHOOK URL
+                const response = await fetch('https://hook.make.com/YOUR_WEBHOOK_ID', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if(response.ok) {
+                    // State 3: Success Screen
+                    contentDiv.innerHTML = `
+                        <div class="text-center py-6">
+                            <div class="text-5xl mb-4">🎉</div>
+                            <h2 class="text-2xl font-bold mb-2 text-gray-800">Success!</h2>
+                            <p class="text-gray-600">Check your email for your customized recommendations and discount code.</p>
+                        </div>
+                    `;
+                } else {
+                    throw new Error("Network response was not ok");
+                }
+            } catch (error) {
+                console.error("Error submitting quiz:", error);
+                alert("Something went wrong. Please try again.");
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Send My Results";
+                submitBtn.classList.remove("opacity-70");
+            }
+        }
+
+        // Initialize the app on load
+        renderApp();
+    </script>
+</body>
+</html>
