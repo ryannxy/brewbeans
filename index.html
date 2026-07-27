@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coffee Match Quiz</title>
-    <!-- Tailwind CSS for styling without needing a separate CSS file -->
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 font-sans">
@@ -12,34 +12,15 @@
     <!-- The main quiz card -->
     <div id="quiz-card" class="max-w-md w-full bg-white p-6 rounded-lg shadow-lg">
         <div id="quiz-content">
-            <!-- Content will be injected here by JavaScript -->
+            <p class="text-center text-gray-500 py-10">Loading your coffee matches...</p>
         </div>
     </div>
 
     <script>
-        // 1. Your EasyStore Products (Mocked for now)
-        const COFFEE_CATALOG = [
-            {
-                name: "House Blend",
-                url: "https://yourstore.com/products/house-blend",
-                image: "https://cdn.easystore.co/house-blend.jpg",
-                tags: ["cozy", "balanced", "afternoon"]
-            },
-            {
-                name: "Dark Midnight Roast",
-                url: "https://yourstore.com/products/dark-roast",
-                image: "https://cdn.easystore.co/dark-roast.jpg",
-                tags: ["bold", "intense", "morning"]
-            },
-            {
-                name: "Bright Light Roast",
-                url: "https://yourstore.com/products/light-roast",
-                image: "https://cdn.easystore.co/light-roast.jpg",
-                tags: ["bright", "fruity", "morning"]
-            }
-        ];
+        // 1. Initialize the empty catalog
+        let COFFEE_CATALOG = [];
 
-        // 2. The Quiz Questions
+        // 2. The Quiz Questions (You can edit these tags to match your EasyStore tags)
         const QUESTIONS = [
             {
                 question: "Pick your ideal weekend getaway:",
@@ -62,10 +43,54 @@
         // 3. Quiz State
         let currentStep = 0;
         let userTags = [];
-
-        // 4. UI Rendering Engine
         const contentDiv = document.getElementById('quiz-content');
 
+        // 4. Fetch Live EasyStore Catalog via Make.com
+        async function loadCatalog() {
+            try {
+                // IMPORTANT: Paste your "EasyStore Catalog Fetcher" Webhook URL here
+                const response = await fetch('https://hook.make.com/YOUR_FETCHER_WEBHOOK_URL_HERE');
+                
+                if (!response.ok) {
+                    throw new Error("Failed to fetch catalog");
+                }
+
+                const liveProducts = await response.json();
+                
+                // Map the EasyStore data structure to match what the quiz needs
+                COFFEE_CATALOG = liveProducts.map(product => {
+                    // Extract tags safely
+                    let tagsArray = [];
+                    if (product.tags) {
+                        tagsArray = product.tags.split(',').map(tag => tag.trim().toLowerCase());
+                    }
+
+                    // Extract image safely
+                    let imageUrl = "";
+                    if (product.featured_image && product.featured_image.url) {
+                        imageUrl = product.featured_image.url;
+                    }
+
+                    return {
+                        name: product.title,
+                        url: `https://yourstore.com/products/${product.handle}`,
+                        image: imageUrl,
+                        tags: tagsArray
+                    };
+                });
+
+                // Start the quiz once data is loaded
+                renderApp();
+                
+            } catch (error) {
+                console.error("Failed to load catalog:", error);
+                contentDiv.innerHTML = `
+                    <p class="text-center text-red-500 py-10">Error loading coffee products. Please refresh the page.</p>
+                `;
+            }
+        }
+
+        // 5. UI Rendering Engine
         function renderApp() {
             // State 1: Rendering Questions
             if (currentStep < QUESTIONS.length) {
@@ -115,7 +140,7 @@
             }
         }
 
-        // 5. Logic Handlers
+        // 6. Logic Handlers
         window.handleAnswer = function(tag) {
             userTags.push(tag);
             currentStep++;
@@ -123,7 +148,7 @@
         };
 
         function getMatches() {
-            // Score the beans
+            // Score the beans based on overlapping tags
             const scoredBeans = COFFEE_CATALOG.map(bean => {
                 const matchScore = bean.tags.filter(tag => userTags.includes(tag)).length;
                 return { ...bean, matchScore };
@@ -155,8 +180,8 @@
             };
 
             try {
-                // REPLACE WITH YOUR MAKE.COM WEBHOOK URL
-                const response = await fetch('https://hook.make.com/YOUR_WEBHOOK_ID', {
+                // IMPORTANT: Paste your "OnVoard Sender" Webhook URL here
+                const response = await fetch('https://hook.make.com/YOUR_ONVOARD_SENDER_WEBHOOK_URL_HERE', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -183,8 +208,8 @@
             }
         }
 
-        // Initialize the app on load
-        renderApp();
+        // Initialize the app on load by fetching the live catalog first
+        loadCatalog();
     </script>
 </body>
 </html>
